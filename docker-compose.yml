@@ -1,0 +1,18 @@
+services:
+  fintech-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fintech-core-engine
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/fintech_ledger.db;Cache=Shared;Mode=ReadWriteCreate;
+    volumes:
+      - fintech_data:/app/data
+
+volumes:
+  fintech_data:

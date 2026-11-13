@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTech Core Transaction Engine | Atomic CAS & Double-Entry Ledger</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <header class="header">
+            <div class="brand">
+                <div class="logo-icon">⚡</div>
+                <div>
+                    <h1>FinTech Core Transaction Engine</h1>
+                    <p class="subtitle">Atomic Compare-And-Swap (CAS) & Double-Entry Ledger Architecture</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/scalar/v1" target="_blank" class="btn btn-outline">
+                    <span>📖 API Docs (Scalar)</span>
+                </a>
+                <button id="btnAuditLedger" class="btn btn-primary">
+                    <span>🔍 Run Ledger Audit</span>
+                </button>
+                <button id="btnResetDemo" class="btn btn-secondary">
+                    <span>🔄 Reset Environment</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Metrics Ticker Bar -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <span class="metric-label">Engine Status</span>
+                <div class="metric-value status-online">
+                    <span class="status-dot"></span> ONLINE
+                </div>
+                <span class="metric-sub">SQLite WAL + ACID Engine</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Total Transactions</span>
+                <div class="metric-value" id="valTotalTx">0</div>
+                <span class="metric-sub" id="valSuccessFail">Success: 0 | Failed: 0</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">CAS Conflicts Detected</span>
+                <div class="metric-value text-amber" id="valConflicts">0</div>
+                <span class="metric-sub" id="valTotalRetries">Retries Executed: 0</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Average Latency</span>
+                <div class="metric-value" id="valAvgLatency">0 ms</div>
+                <span class="metric-sub">Exponential Backoff</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Live Throughput</span>
+                <div class="metric-value text-emerald" id="valTps">0 TPS</div>
+                <span class="metric-sub">Real-time processing</span>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="main-grid">
+            <!-- Left Column: Accounts & Stress Test Arena -->
+            <div class="content-left">
+                <!-- Accounts Section -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>🏦 Account Balances & CAS Versions</h2>
+                        <span class="badge">Real-time</span>
+                    </div>
+                    <div class="accounts-grid" id="accountsGrid">
+                        <!-- Rendered by JS -->
+                        <div class="loading-spinner">Loading accounts...</div>
+                    </div>
+                </div>
+
+                <!-- Stress Test Arena -->
+                <div class="panel highlight-panel">
+                    <div class="panel-header">
+                        <h2>🎯 Stress Test & Concurrency Arena</h2>
+                        <span class="badge badge-accent">Demonstration Suite</span>
+                    </div>
+
+                    <div class="scenario-box">
+                        <div class="scenario-meta">
+                            <span class="scenario-tag">Scenario 5 (Prompt Requirement)</span>
+                            <h3>100 Concurrent Withdrawals (CAS Protected)</h3>
+                            <p>Initial: <strong>Account A = 1,000 VND</strong>. Runs <strong>100 simultaneous requests</strong> of <strong>10 VND</strong> each.
+                            Atomic CAS detects conflicts, automatically retries with exponential backoff.
+                            Expected: Exactly 100 transactions succeed, <strong>Final Balance = 0 VND</strong>, 0 double spending, ledger 100% balanced.</p>
+                        </div>
+                        <div class="scenario-actions">
+                            <button id="btnRunCasStress" class="btn btn-action">
+                                🚀 Execute 100 Concurrent CAS Requests
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="scenario-box alert-box">
+                        <div class="scenario-meta">
+                            <span class="scenario-tag tag-danger">Race Condition Comparison</span>
+                            <h3>100 Concurrent Withdrawals (UNSAFE / NON-CAS)</h3>
+                            <p>Runs 100 simultaneous requests without Version check (standard naive ORM read-modify-write).
+                            Watch race conditions corrupt the balance, cause lost updates, and break ledger integrity.</p>
+                        </div>
+                        <div class="scenario-actions">
+                            <button id="btnRunUnsafeStress" class="btn btn-danger">
+                                ⚠️ Execute 100 UNSAFE Requests (Observe Bug)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Progress & Test Results Display -->
+                    <div id="testProgressSection" class="test-progress-box hidden">
+                        <div class="progress-title-row">
+                            <strong id="testTitle">Running Test...</strong>
+                            <span id="testTimeElapsed">0 ms</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div id="testProgressBar" class="progress-bar"></div>
+                        </div>
+                        <div class="test-stats-grid">
+                            <div>Sent: <strong id="statSent">0</strong>/100</div>
+                            <div>Completed: <strong id="statCompleted" class="text-emerald">0</strong></div>
+                            <div>Conflicts: <strong id="statConflicts" class="text-amber">0</strong></div>
+                            <div>Failed: <strong id="statFailed" class="text-rose">0</strong></div>
+                        </div>
+                        <div id="testVerdict" class="test-verdict"></div>
+                    </div>
+                </div>
+
+                <!-- Manual Transaction Form -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>💳 Manual Transaction Executor</h2>
+                    </div>
+                    <form id="manualTxForm" class="tx-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Action</label>
+                                <select id="txType">
+                                    <option value="withdraw">Withdraw (Rút tiền)</option>
+                                    <option value="deposit">Deposit (Nạp tiền)</option>
+                                    <option value="transfer">Transfer (Chuyển khoản)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount (VND)</label>
+                                <input type="number" id="txAmount" value="50" min="1" step="any" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Account</label>
+                                <select id="txSource">
+                                    <option value="ACC_A">ACC_A (Nguyen Van A)</option>
+                                    <option value="ACC_B">ACC_B (Tran Thi B)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="destGroup" style="display: none;">
+                                <label>Destination Account</label>
+                                <select id="txDest">
+                                    <option value="ACC_B">ACC_B (Tran Thi B)</option>
+                                    <option value="ACC_A">ACC_A (Nguyen Van A)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-footer">
+                            <button type="submit" class="btn btn-primary">Execute Transaction</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Right Column: Audit & Live Ledger Stream -->
+            <div class="content-right">
+                <!-- Audit Report Card -->
+                <div class="panel audit-panel">
+                    <div class="panel-header">
+                        <h2>⚖️ Double-Entry Reconciliation</h2>
+                        <span id="auditBadge" class="badge badge-success">Audit Passed</span>
+                    </div>
+                    <div id="auditSummaryBox" class="audit-summary-box">
+                        <div class="audit-stat-item">
+                            <span>Total Debits:</span>
+                            <strong id="auditDebits">0 VND</strong>
+                        </div>
+                        <div class="audit-stat-item">
+                            <span>Total Credits:</span>
+                            <strong id="auditCredits">0 VND</strong>
+                        </div>
+                        <div class="audit-stat-item">
+                            <span>Imbalance Delta:</span>
+                            <strong id="auditDelta" class="text-emerald">0.00 VND</strong>
+                        </div>
+                        <div class="audit-stat-item">
+                            <span>Mathematical Status:</span>
+                            <strong id="auditStatus" class="text-emerald">100% Balanced (VAS/IFRS)</strong>
+                        </div>
+                    </div>
+                    <div id="auditDescription" class="audit-desc">
+                        Every single transaction generates equal Debits and Credits.
+                    </div>
+                </div>
+
+                <!-- Live Transaction Stream -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>📜 Live Ledger Stream</h2>
+                        <span class="badge">Last 25 Events</span>
+                    </div>
+                    <div class="tx-table-container">
+                        <table class="tx-table">
+                            <thead>
+                                <tr>
+                                    <th>TxID</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Retries</th>
+                                    <th>Latency</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="txTableBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
